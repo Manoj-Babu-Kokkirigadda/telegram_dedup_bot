@@ -1,7 +1,7 @@
 """SQLAlchemy ORM models for the dedup bot."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -20,7 +20,7 @@ class Base(DeclarativeBase):
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 class MediaHash(Base):
