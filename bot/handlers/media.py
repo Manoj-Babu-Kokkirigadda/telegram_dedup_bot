@@ -226,10 +226,6 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             logger.warning("Downloaded file is empty or missing for chat %s msg %s", chat_id, message.message_id)
             return
 
-        if file_size is not None and file_size > TG_MAX_FILE_SIZE:
-            logger.info("Skipping oversized file (%d bytes > 20MB) chat=%s msg=%s", file_size, chat_id, message.message_id)
-            return
-
         doc_extra = {}
         if file_type == "document":
             doc_extra = {
