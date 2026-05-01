@@ -148,7 +148,7 @@ def build_application() -> Application:
                 filters.PHOTO
                 | filters.VIDEO
                 | filters.VIDEO_NOTE
-                | filters.Animation
+                | filters.ANIMATION
                 | filters.AUDIO
                 | filters.Document.ALL
             )
