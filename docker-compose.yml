@@ -1,0 +1,37 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/dedup.db}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./downloads:/app/downloads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, time; p='logs/heartbeat.txt'; age=time.time()-float(open(p).read()) if os.path.isfile(p) else 999; exit(0 if age<120 else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - sqlite
+      - postgres
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${PG_USER:-dedup}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-dedup_secret}
+      POSTGRES_DB: ${PG_DATABASE:-dedup}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    profiles:
+      - postgres
+
+volumes:
+  pgdata:

@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: telegram-dedup-bot
+    env: python
+    buildCommand: |
+      apt-get update && apt-get install -y ffmpeg
+      pip install -r requirements.txt
+      python -m alembic upgrade head
+    startCommand: python -m bot.main
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dedup-db
+          property: connectionString
+      - key: DOWNLOAD_DIR
+        value: /tmp/downloads
+      - key: LOG_LEVEL
+        value: INFO
+databases:
+  - name: dedup-db
+    plan: free
+    databaseName: dedup
+    user: dedup
