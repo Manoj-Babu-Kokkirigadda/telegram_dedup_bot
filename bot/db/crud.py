@@ -1,7 +1,7 @@
 """CRUD operations for media hashes and chat settings."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Sequence
 
 from sqlalchemy import delete, func, select
@@ -11,7 +11,7 @@ from bot.db.models import ChatSettings, DuplicateLog, MediaHash
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 async def create_hash(
