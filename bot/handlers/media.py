@@ -39,6 +39,10 @@ _perm_warning_interval = 3600
 
 
 notify_on_delete: bool = True
+_notify_cooldown: dict[int, float] = {}
+_NOTIFY_COOLDOWN = 30
+
+TG_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB Bot API limit
 
 
 def configure(
@@ -205,15 +209,25 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     tmp_path = os.path.join(download_dir, f"{uuid.uuid4().hex}_{file_type}")
     try:
+        if hasattr(tg_file, "file_size") and tg_file.file_size and tg_file.file_size > TG_MAX_FILE_SIZE:
+            logger.info("Skipping oversized file (%d bytes > 20MB) chat=%s msg=%s", tg_file.file_size, chat_id, message.message_id)
+            return
         try:
             tg_file_obj = await context.bot.get_file(tg_file.file_id)
             await tg_file_obj.download_to_drive(custom_path=tmp_path)
         except TelegramError as exc:
-            logger.error("Download failed for chat %s msg %s: %s", chat_id, message.message_id, exc)
+            if "too big" in str(exc).lower():
+                logger.info("Skipping oversized file chat %s msg %s: %s", chat_id, message.message_id, exc)
+            else:
+                logger.error("Download failed for chat %s msg %s: %s", chat_id, message.message_id, exc)
             return
 
         if not os.path.isfile(tmp_path) or os.path.getsize(tmp_path) == 0:
             logger.warning("Downloaded file is empty or missing for chat %s msg %s", chat_id, message.message_id)
+            return
+
+        if file_size is not None and file_size > TG_MAX_FILE_SIZE:
+            logger.info("Skipping oversized file (%d bytes > 20MB) chat=%s msg=%s", file_size, chat_id, message.message_id)
             return
 
         doc_extra = {}
@@ -283,14 +297,17 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                             sender_id=message.from_user.id if message.from_user else None,
                         )
                         if notify_on_delete:
-                            asyncio.create_task(
-                                _notify_duplicate_removed(
-                                    context,
-                                    chat_id,
-                                    file_type,
-                                    message.date.isoformat() if message.date else "unknown",
+                            now = time.monotonic()
+                            if now - _notify_cooldown.get(chat_id, 0) > _NOTIFY_COOLDOWN:
+                                _notify_cooldown[chat_id] = now
+                                asyncio.create_task(
+                                    _notify_duplicate_removed(
+                                        context,
+                                        chat_id,
+                                        file_type,
+                                        message.date.isoformat() if message.date else "unknown",
+                                    )
                                 )
-                            )
                 await session.commit()
         except Exception as exc:
             logger.exception(
