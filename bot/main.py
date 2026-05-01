@@ -6,8 +6,10 @@ import logging
 import os
 import signal
 import time
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from threading import Thread
 
 from dotenv import load_dotenv
 from telegram.ext import (
@@ -159,7 +161,26 @@ def build_application() -> Application:
     return app
 
 
+class _HealthHandler(BaseHTTPRequestHandler):
+    """Dummy HTTP server to satisfy Render's port requirement."""
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"ok")
+    def log_message(self, format, *args):
+        pass
+
+
+def _start_dummy_server(port: int) -> None:
+    Thread(target=lambda: HTTPServer(("0.0.0.0", port), _HealthHandler).serve_forever(), daemon=True).start()
+    logger.info("Dummy health server on port %d", port)
+
+
 def main() -> None:
+    port = int(os.environ.get("PORT", "10000"))
+    _start_dummy_server(port)
+
     app = build_application()
     logger = logging.getLogger(__name__)
     logger.info("Starting Telegram dedup bot…")
