@@ -12,6 +12,7 @@ from pathlib import Path
 from threading import Thread
 
 from dotenv import load_dotenv
+from telegram import BotCommand
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -26,6 +27,18 @@ from bot.handlers import media as media_handlers
 
 logger = logging.getLogger(__name__)
 _heartbeat_task: asyncio.Task | None = None
+
+ADMIN_COMMANDS = [
+    BotCommand("start", "Welcome message and command list"),
+    BotCommand("help", "Show command reference"),
+    BotCommand("dedup_on", "Enable duplicate detection for this chat"),
+    BotCommand("dedup_off", "Disable duplicate detection for this chat"),
+    BotCommand("set_threshold", "Set image/video similarity threshold"),
+    BotCommand("dedup_status", "Show enabled/disabled state and stats"),
+    BotCommand("dedup_stats", "Show global + per-chat duplicate statistics"),
+    BotCommand("clean", "Delete all tracked duplicate messages"),
+    BotCommand("clear_hashes", "Wipe stored hashes (requires CONFIRM)"),
+]
 
 
 async def _heartbeat_loop(path: str, interval: int = 60) -> None:
@@ -78,6 +91,7 @@ async def _post_init(app: Application) -> None:
     await init_db()
     heartbeat_path = "logs/heartbeat.txt"
     _heartbeat_task = asyncio.create_task(_heartbeat_loop(heartbeat_path))
+    await app.bot.set_my_commands(commands=ADMIN_COMMANDS)
     logger.info("Database initialised.")
 
 
@@ -130,12 +144,18 @@ def build_application() -> Application:
         .build()
     )
 
+    # Start + Help
+    app.add_handler(CommandHandler("start", admin_handlers.cmd_start))
+    app.add_handler(CommandHandler("help", admin_handlers.cmd_help))
+
+    # Admin commands
     app.add_handler(CommandHandler("dedup_on", admin_handlers.cmd_dedup_on))
     app.add_handler(CommandHandler("dedup_off", admin_handlers.cmd_dedup_off))
     app.add_handler(CommandHandler("set_threshold", admin_handlers.cmd_set_threshold))
     app.add_handler(CommandHandler("dedup_status", admin_handlers.cmd_dedup_status))
     app.add_handler(CommandHandler("clear_hashes", admin_handlers.cmd_clear_hashes))
     app.add_handler(CommandHandler("dedup_stats", admin_handlers.cmd_dedup_stats))
+    app.add_handler(CommandHandler("clean", admin_handlers.cmd_clean))
 
     app.add_handler(
         MessageHandler(
