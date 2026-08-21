@@ -1,4 +1,4 @@
-# Telegram Dedup Bot
+# Telegram Duplicate Media Remover Bot
 
 A production-grade Telegram bot that automatically detects and deletes duplicate
 media in groups and channels. Supports **photos, videos, animations (GIFs),
